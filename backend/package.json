@@ -1,11 +1,14 @@
 {
   "name": "cyberevents-api",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "main": "src/server.js",
   "scripts": { "start": "node src/server.js" },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "express": "^4.19.2",
-    "pg": "^8.12.0"
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.12.0",
+    "sanitize-html": "^2.13.0"
   }
 }

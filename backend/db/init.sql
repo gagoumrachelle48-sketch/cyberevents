@@ -119,3 +119,13 @@ INSERT INTO events (title, description, category, starts_at, price, reduced_pric
   ('Webinar gratuit : tendances cyber',
    'Rendez-vous hebdomadaire en ligne, inscription obligatoire.',
    'Webinar',    NOW() + INTERVAL '5 days',     0, NULL, 1000);
+
+-- US-008 (A07 session admin faible) : mot de passe admin par défaut, trivial.
+-- Reste en clair en mode labo ; la correction (hachage + rotation) vient au sprint 2.
+UPDATE users SET password='admin123' WHERE email='admin@cyberevents.local';
+
+-- Commentaires de démonstration
+INSERT INTO comments (event_id, user_id, content) VALUES
+  (1, 4, 'Super événement l''an dernier, j''ai hâte !'),
+  (1, 3, 'Le programme est en ligne ?'),
+  (2, 4, 'Possible de venir en équipe de 3 ?');

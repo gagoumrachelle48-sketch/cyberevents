@@ -7,23 +7,31 @@ const LOG_FILE = path.join(__dirname, '..', 'logs', 'http.log');
 fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
 const stream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
 
+// Les secrets ne vont jamais dans les logs, même en mode labo.
+const SECRET_FIELDS = ['password', 'card_number', 'cvv', 'token', 'refresh_token'];
+function redact(body) {
+  if (!body || typeof body !== 'object') return body;
+  const copy = { ...body };
+  for (const f of SECRET_FIELDS) if (f in copy) copy[f] = '[REDACTED]';
+  return copy;
+}
+
 module.exports = function httpLogger(req, res, next) {
   const start = process.hrtime.bigint();
   res.on('finish', () => {
-    const entry = {
+    stream.write(JSON.stringify({
       ts: new Date().toISOString(),
       ip: req.ip,
       method: req.method,
       url: req.originalUrl,
       query: req.query,
-      body: req.body,              // gardé volontairement en mode labo (payloads d'attaque)
+      body: redact(req.body),
       status: res.statusCode,
       ua: req.get('user-agent') || '',
       referer: req.get('referer') || '',
       user_id: req.user ? req.user.id : null,
       duration_ms: Number(process.hrtime.bigint() - start) / 1e6,
-    };
-    stream.write(JSON.stringify(entry) + '\n');
+    }) + '\n');
   });
   next();
 };
