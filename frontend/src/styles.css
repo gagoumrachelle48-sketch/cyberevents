@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+
+:root {
+  --ink: #16203a;
+  --paper: #eef1f5;
+  --card: #ffffff;
+  --line: #c9d1dd;
+  --signal: #e4572e;
+  --muted: #5b6475;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.page { max-width: 960px; margin: 0 auto; padding: 24px 20px 64px; }
+
+.top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+.brand { font-weight: 700; font-size: 1.25rem; }
+.mode { font-size: .85rem; padding: 4px 10px; border-radius: 4px; }
+.mode-vuln { background: var(--signal); color: #fff; }
+.mode-secure { background: #2a9d6f; color: #fff; }
+
+h1 { font-size: 2.25rem; margin: 0 0 24px; }
+.error { color: var(--signal); }
+
+.tickets { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+
+/* Le billet : corps + talon séparé par une perforation */
+.ticket { display: grid; grid-template-columns: 1fr 200px; background: var(--card); border-radius: 10px; }
+.ticket-body { padding: 20px 24px; }
+.ticket-stub {
+  padding: 20px; border-left: 2px dashed var(--line); position: relative;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.ticket-stub::before, .ticket-stub::after {
+  content: ''; position: absolute; left: -11px; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--paper);
+}
+.ticket-stub::before { top: -10px; }
+.ticket-stub::after { bottom: -10px; }
+
+.cat { margin: 0; color: var(--muted); font-size: .9rem; }
+h2 { margin: 4px 0 8px; font-size: 1.35rem; }
+.desc { margin: 0; color: var(--muted); line-height: 1.5; max-width: 60ch; }
+.date { margin: 0; font-weight: 600; }
+.price { margin: 6px 0; font-size: 1.6rem; font-weight: 700; }
+.cap { margin: 0; color: var(--muted); font-size: .9rem; }
+
+@media (max-width: 640px) {
+  .ticket { grid-template-columns: 1fr; }
+  .ticket-stub { border-left: none; border-top: 2px dashed var(--line); }
+  .ticket-stub::before, .ticket-stub::after { display: none; }
+}

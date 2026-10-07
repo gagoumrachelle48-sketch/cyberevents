@@ -1,0 +1,38 @@
+# Plateforme Cyber-Événements — socle (T06)
+# Les ports sont liés à l'IP host-only : l'appli vulnérable n'est joignable
+# que depuis le réseau isolé 192.168.56.0/24 (Windows + Kali), jamais via le NAT.
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      APP_MODE: ${APP_MODE:-vuln}   # vuln = labo du sprint 1, secure = version corrigée
+    depends_on:
+      db: { condition: service_healthy }
+    volumes:
+      - ./logs:/app/logs            # T21 : logs HTTP lisibles depuis la VM
+    ports:
+      - "${BIND_IP:-192.168.56.104}:4000:4000"
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    depends_on: [api]
+    ports:
+      - "${BIND_IP:-192.168.56.104}:8080:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
