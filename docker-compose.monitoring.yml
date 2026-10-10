@@ -1,0 +1,40 @@
+# Pile de monitoring (T42 logs centralisés, T59 santé des services).
+# Plus légère qu'ELK : adaptée à la VM de 4 Go.
+# Lancer avec :  docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+services:
+  loki:
+    image: grafana/loki:2.9.8
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./infra/loki/config.yml:/etc/loki/config.yml:ro
+      - lokidata:/loki
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.9.8
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./infra/promtail/config.yml:/etc/promtail/config.yml:ro
+      - ./logs:/logs:ro
+    depends_on: [loki]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    env_file: .env
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-cyberadmin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    depends_on: [loki]
+    ports:
+      - "${BIND_IP:-192.168.56.104}:3000:3000"
+    restart: unless-stopped
+
+volumes:
+  lokidata:
+  grafanadata:

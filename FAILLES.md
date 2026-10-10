@@ -32,3 +32,28 @@ curl -X POST http://192.168.56.104:8080/api/admin/events \
 sed -i 's/^APP_MODE=.*/APP_MODE=secure/' .env
 docker compose up -d --build api
 ```
+
+---
+
+# Étape 3 — Sécurisation & détection (sprint 2)
+
+## Corrections (mode secure)
+Basculer : `sed -i 's/^APP_MODE=.*/APP_MODE=secure/' .env && docker compose up -d --build api`
+- FIX-1 injection → requêtes paramétrées
+- FIX-2 XSS → sanitize-html côté serveur
+- FIX-3 crypto → bcrypt coût 12 + politique de mot de passe
+- FIX-4 accès → contrôle du rôle côté serveur
+- FIX-5 config → erreurs génériques + en-têtes de sécurité
+- T30 rate limiting : 5 connexions/min, 10 achats/min par IP
+
+## Détection temps réel (toujours active)
+- `backend/src/detection.js` scanne chaque requête (SQLi, XSS) et les échecs de login (brute force).
+- Alertes → table `security_alerts` + `logs/alerts.log`.
+- Dashboard RSSI intégré : `/dashboard` (comptes sarah ou admin).
+- API : `GET /api/alerts`, `/api/alerts/stats`, `/api/metrics`.
+
+## Monitoring (T42, T59)
+```bash
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+```
+Grafana : http://192.168.56.104:3000 (admin / cyberadmin), dashboard « CyberEvents — Sécurité & Trafic ».

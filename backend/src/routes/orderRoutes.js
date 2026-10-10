@@ -2,12 +2,14 @@ const express = require('express');
 const crypto = require('crypto');
 const db = require('../db');
 const { requireAuth } = require('../auth');
+const { makeLimiter } = require('../rateLimit');
+const orderLimiter = makeLimiter({ windowMs: 60000, max: 10, message: 'Trop d\'achats en peu de temps.' });
 const mailer = require('../mailer');
 
 const router = express.Router();
 
 // US-003 : acheter un billet (paiement simulé) -> transaction + billets + QR
-router.post('/', requireAuth, async (req, res, next) => {
+router.post('/', requireAuth, orderLimiter, async (req, res, next) => {
   const client = await db.pool.connect();
   try {
     const { event_id, quantity, card_number } = req.body || {};

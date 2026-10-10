@@ -1,0 +1,39 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "panels": [
+    {
+      "title": "Requêtes HTTP par minute",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [ { "expr": "sum(count_over_time({job=\"http\"}[1m]))", "refId": "A" } ]
+    },
+    {
+      "title": "Réponses par code de statut",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [ { "expr": "sum by (status) (count_over_time({job=\"http\"}[1m]))", "refId": "A" } ]
+    },
+    {
+      "title": "Alertes de sécurité par type",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [ { "expr": "sum by (type) (count_over_time({job=\"alerts\"}[5m]))", "refId": "A" } ]
+    },
+    {
+      "title": "Journal des attaques détectées",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [ { "expr": "{job=\"alerts\"}", "refId": "A" } ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["cyberevents"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "CyberEvents — Sécurité & Trafic",
+  "uid": "cyberevents-main"
+}

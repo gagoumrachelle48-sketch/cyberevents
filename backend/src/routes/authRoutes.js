@@ -3,6 +3,11 @@ const db = require('../db');
 const { sign } = require('../auth');
 const pw = require('../passwords');
 const mailer = require('../mailer');
+const detection = require('../detection');
+const { makeLimiter } = require('../rateLimit');
+
+// T30 : max 5 connexions / minute / IP en mode secure
+const loginLimiter = makeLimiter({ windowMs: 60000, max: 5, message: 'Trop de tentatives de connexion.' });
 
 const router = express.Router();
 
@@ -32,7 +37,7 @@ router.post('/register', async (req, res, next) => {
 });
 
 // US-002 : connexion
-router.post('/login', async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const { email, password } = req.body || {};
     const { rows } = await db.query('SELECT * FROM users WHERE email=$1', [email]);
@@ -47,7 +52,10 @@ router.post('/login', async (req, res, next) => {
       [req.ip, { email, success: !!ok }, !!ok]
     ).catch(() => {});
 
-    if (!ok) return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
+    if (!ok) {
+      detection.recordLoginFailure(req.ip, email);   // T37/US-018
+      return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
+    }
     res.json({ token: sign(user),
       user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role } });
   } catch (e) { next(e); }

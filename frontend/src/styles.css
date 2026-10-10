@@ -170,3 +170,10 @@ label.field input, label.field textarea, label.field select { min-width: 160px; 
   .ev, .tk { grid-template-columns: 1fr; }
   .ev .meta { text-align: left; }
 }
+
+/* ---------- Dashboard RSSI ---------- */
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.kpi { background: var(--bg-2); border: 1px solid var(--line-col); border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+.kpi-n { font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+.kpi-l { font-size: .78rem; color: var(--muted); }
+.sev { font-size: .85rem; font-family: 'JetBrains Mono', monospace; }

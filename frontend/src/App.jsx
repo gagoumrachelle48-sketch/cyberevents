@@ -8,11 +8,13 @@ import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import MyTickets from './pages/MyTickets.jsx';
 import AdminPage from './pages/AdminPage.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 
 function Sidebar({ mode }) {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const isStaff = user && (user.role === 'admin' || user.role === 'organizer');
+  const isSecurity = user && (user.role === 'admin' || user.role === 'rssi');
 
   return (
     <aside className="sidebar">
@@ -26,11 +28,10 @@ function Sidebar({ mode }) {
         <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Événements</NavLink>
         {user && <NavLink to="/mes-billets" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Mes billets</NavLink>}
 
-        {isStaff && <>
-          <span className="nav-label">Exploitation</span>
-          {/* VULN-4 : lien masqué côté client seulement ; l'API admin reste ouverte en mode vuln. */}
-          <NavLink to="/admin" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Administration</NavLink>
-        </>}
+        {(isStaff || isSecurity) && <span className="nav-label">Exploitation</span>}
+        {isSecurity && <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Dashboard RSSI</NavLink>}
+        {/* VULN-4 : lien masqué côté client seulement ; l'API admin reste ouverte en mode vuln. */}
+        {isStaff && <NavLink to="/admin" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Administration</NavLink>}
 
         <span className="nav-label">Compte</span>
         {!user && <NavLink to="/connexion" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Connexion</NavLink>}
@@ -55,6 +56,7 @@ const TITLES = {
   '/': ['Événements', 'Catalogue des événements CyberEvents'],
   '/mes-billets': ['Mes billets', 'Vos réservations et QR codes'],
   '/admin': ['Administration', 'Gestion des événements, comptes et transactions'],
+  '/dashboard': ['Dashboard RSSI', 'Surveillance des attaques et santé des services'],
   '/connexion': ['Connexion', 'Accédez à votre espace'],
   '/inscription': ['Inscription', 'Créez votre compte client'],
 };
@@ -90,6 +92,7 @@ export default function App() {
             <Route path="/inscription" element={<RegisterPage />} />
             <Route path="/mes-billets" element={<MyTickets />} />
             <Route path="/admin" element={<AdminPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           </Routes>
         </div>
       </div>
