@@ -28,7 +28,10 @@ services:
     restart: unless-stopped
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: "http://192.168.56.104:4000"
     depends_on: [api]
     ports:
       - "${BIND_IP:-192.168.56.104}:8080:80"
