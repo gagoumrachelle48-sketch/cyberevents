@@ -8,6 +8,15 @@ const detection = require('./detection');
 const app = express();
 app.set('trust proxy', true);
 app.use(express.json());
+
+// CORS : autorise le front (hébergé sur un autre domaine en production)
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', process.env.FRONT_ORIGIN || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 app.use(readToken);     // lit le JWT s'il existe (anonyme sinon)
 app.use(httpLogger);    // T21 : après readToken pour tracer l'user_id
 app.use(detection.scan);   // US-017 : détection SQLi/XSS en temps réel
@@ -32,6 +41,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/qr', require('./routes/qrRoutes'));
 
 // US-019/020 : flux d'alertes pour le dashboard RSSI
 app.get('/api/alerts', async (req, res) => {
@@ -73,4 +83,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Erreur interne' });
 });
 
-app.listen(4000, () => console.log(`API CyberEvents — mode ${MODE} — port 4000`));
+const initIfNeeded = require('./initdb');
+const PORT = process.env.PORT || 4000;
+initIfNeeded().finally(() => {
+  app.listen(PORT, () => console.log(`API CyberEvents — mode ${MODE} — port ${PORT}`));
+});

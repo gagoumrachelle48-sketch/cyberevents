@@ -1,39 +1,114 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "panels": [
     {
       "title": "Requêtes HTTP par minute",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [ { "expr": "sum(count_over_time({job=\"http\"}[1m]))", "refId": "A" } ]
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({job=\"http\"}[1m]))",
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ]
     },
     {
       "title": "Réponses par code de statut",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [ { "expr": "sum by (status) (count_over_time({job=\"http\"}[1m]))", "refId": "A" } ]
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (count_over_time({job=\"http\"}[1m]))",
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ]
     },
     {
       "title": "Alertes de sécurité par type",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [ { "expr": "sum by (type) (count_over_time({job=\"alerts\"}[5m]))", "refId": "A" } ]
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "sum by (type) (count_over_time({job=\"alerts\"}[5m]))",
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ]
     },
     {
       "title": "Journal des attaques détectées",
       "type": "logs",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [ { "expr": "{job=\"alerts\"}", "refId": "A" } ]
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{job=\"alerts\"}",
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["cyberevents"],
-  "time": { "from": "now-1h", "to": "now" },
+  "tags": [
+    "cyberevents"
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "title": "CyberEvents — Sécurité & Trafic",
   "uid": "cyberevents-main"
 }

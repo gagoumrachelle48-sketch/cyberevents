@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
 COPY src ./src
+COPY db ./db
 RUN mkdir -p logs
 EXPOSE 4000
 CMD ["node", "src/server.js"]

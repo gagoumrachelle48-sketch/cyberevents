@@ -177,3 +177,23 @@ label.field input, label.field textarea, label.field select { min-width: 160px; 
 .kpi-n { font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 .kpi-l { font-size: .78rem; color: var(--muted); }
 .sev { font-size: .85rem; font-family: 'JetBrains Mono', monospace; }
+
+/* ---------- QR codes et scan ---------- */
+.qr-box { margin-top: 14px; padding: 16px; background: #fff; border-radius: 10px; display: inline-flex;
+  flex-direction: column; align-items: center; gap: 6px; }
+.qr-box img { display: block; }
+.qr-box .muted { color: #5b6475; }
+
+.scan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.scan-form { display: flex; gap: 10px; margin-bottom: 10px; }
+.scan-form input { flex: 1; }
+.scan-result { margin-top: 16px; padding: 20px; border-radius: 10px; text-align: center; }
+.scan-result.ok { background: rgba(53,194,139,.15); border: 1px solid var(--ok); }
+.scan-result.danger { background: rgba(240,96,96,.15); border: 1px solid var(--danger); }
+.scan-result.warn { background: rgba(245,165,36,.15); border: 1px solid var(--signal); }
+.scan-verdict { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+.scan-result.ok .scan-verdict { color: var(--ok); }
+.scan-result.danger .scan-verdict { color: var(--danger); }
+.scan-result.warn .scan-verdict { color: var(--signal); }
+
+@media (max-width: 860px) { .scan-grid { grid-template-columns: 1fr; } }
