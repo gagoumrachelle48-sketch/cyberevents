@@ -57,3 +57,17 @@ Basculer : `sed -i 's/^APP_MODE=.*/APP_MODE=secure/' .env && docker compose up -
 docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 Grafana : http://192.168.56.104:3000 (admin / cyberadmin), dashboard « CyberEvents — Sécurité & Trafic ».
+
+---
+
+# Sprint 3 — QR codes d'entrée (US-024 à US-027)
+
+- US-024 : chaque billet porte un `qr_token` unique ; l'image QR est générée à la volée
+  (`GET /api/qr/ticket/:id/qr`) et affichée dans « Mes billets ».
+- US-025 : écran de scan `/scan` (contrôleur) — colle le token, le serveur valide.
+- US-027 : le serveur distingue **valid / duplicate / unknown / wrong_event**.
+  Un second scan du même QR renvoie `duplicate` et lève une alerte `qr_fraud`.
+- US-026 : suivi des entrées en temps réel (compteurs validés/refusés + journal).
+
+Démo : afficher le QR d'un billet, le scanner (ACCÈS AUTORISÉ), rescanner le même
+token (DÉJÀ SCANNÉ — REFUSÉ).
