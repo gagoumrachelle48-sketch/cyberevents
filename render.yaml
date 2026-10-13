@@ -36,7 +36,4 @@ services:
     plan: free
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: cyberevents-api
-          property: host
+        value: https://cyberevents-api.onrender.com
