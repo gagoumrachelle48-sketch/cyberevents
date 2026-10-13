@@ -8,6 +8,7 @@ export default function AdminPage() {
   const [events, setEvents] = useState([]);
   const [users, setUsers] = useState([]);
   const [tx, setTx] = useState([]);
+  const [fraud, setFraud] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [msg, setMsg] = useState('');
@@ -18,7 +19,14 @@ export default function AdminPage() {
     setMsg('');
     if (tab === 'users') api('/admin/users').then(setUsers).catch((e) => setMsg(e.message));
     if (tab === 'tx') api('/admin/transactions').then(setTx).catch((e) => setMsg(e.message));
+    if (tab === 'fraud') loadFraud();
   }, [tab]);
+
+  const loadFraud = () => api('/admin/fraud-queue').then(setFraud).catch((e) => setMsg(e.message));
+  const review = async (id, decision) => {
+    try { await api(`/admin/fraud-queue/${id}/review`, { method: 'POST', body: { decision } }); loadFraud(); setMsg(decision === 'approve' ? 'Achat approuvé.' : 'Achat rejeté.'); }
+    catch (e) { setMsg(e.message); }
+  };
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const save = async () => {
@@ -41,6 +49,7 @@ export default function AdminPage() {
         <button className={tab === 'events' ? 'on' : ''} onClick={() => setTab('events')}>Événements</button>
         <button className={tab === 'users' ? 'on' : ''} onClick={() => setTab('users')}>Utilisateurs</button>
         <button className={tab === 'tx' ? 'on' : ''} onClick={() => setTab('tx')}>Transactions</button>
+        <button className={tab === 'fraud' ? 'on' : ''} onClick={() => setTab('fraud')}>Achats suspects</button>
       </div>
       {msg && <p className="info">{msg}</p>}
 
@@ -106,6 +115,35 @@ export default function AdminPage() {
                   <td><code>{t.status}</code></td><td className="mono">{t.ip}</td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'fraud' && (
+        <div className="panel">
+          <h2>File des achats suspects <span className="hint">scoring de fraude (modèle Isolation Forest)</span></h2>
+          <table className="table">
+            <thead><tr><th>Date</th><th>Client</th><th>Événement</th><th>Montant</th><th>Qté</th><th>Score</th><th>Statut</th><th>IP</th><th>Décision</th></tr></thead>
+            <tbody>
+              {fraud.map((t) => (
+                <tr key={t.id}>
+                  <td className="mono">{new Date(t.created_at).toLocaleString('fr-FR')}</td>
+                  <td>{t.email}</td><td>{t.event_title}</td><td>{t.amount} €</td>
+                  <td className="mono">{t.quantity}</td>
+                  <td><span className="sev" style={{ color: Number(t.fraud_score) >= 0.5 ? 'var(--danger)' : 'var(--signal)' }}>
+                    {Number(t.fraud_score).toFixed(2)}</span></td>
+                  <td><code>{t.status}</code></td>
+                  <td className="mono">{t.ip}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {t.status === 'flagged' ? (<>
+                      <button className="link" style={{ color: 'var(--ok)' }} onClick={() => review(t.id, 'approve')}>approuver</button>{' · '}
+                      <button className="link" style={{ color: 'var(--danger)' }} onClick={() => review(t.id, 'reject')}>rejeter</button>
+                    </>) : <span className="muted">traité</span>}
+                  </td>
+                </tr>
+              ))}
+              {fraud.length === 0 && <tr><td colSpan="9" className="muted">Aucun achat suspect pour le moment.</td></tr>}
             </tbody>
           </table>
         </div>

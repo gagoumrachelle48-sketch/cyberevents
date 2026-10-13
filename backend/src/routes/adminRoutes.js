@@ -66,4 +66,32 @@ router.get('/transactions', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+
+// US-028 : file des achats suspects (transactions signalées par le scoring de fraude)
+router.get('/fraud-queue', async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT tr.id, tr.amount, tr.quantity, tr.status, tr.fraud_score, tr.ip,
+              tr.card_last4, tr.created_at, u.email, e.title AS event_title
+       FROM transactions tr
+       LEFT JOIN users u ON u.id=tr.user_id
+       LEFT JOIN events e ON e.id=tr.event_id
+       WHERE tr.status='flagged' OR tr.fraud_score >= 0.5
+       ORDER BY tr.fraud_score DESC, tr.created_at DESC LIMIT 200`);
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+
+// Revue d'un achat suspect : approuver (-> success) ou rejeter (-> failed)
+router.post('/fraud-queue/:id/review', async (req, res, next) => {
+  try {
+    const decision = (req.body && req.body.decision) === 'approve' ? 'success' : 'failed';
+    const { rows } = await db.query(
+      'UPDATE transactions SET status=$1 WHERE id=$2 RETURNING id, status', [decision, req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Transaction introuvable' });
+    audit(req, 'fraud.review', `transaction:${req.params.id}`, { decision });
+    res.json(rows[0]);
+  } catch (e) { next(e); }
+});
+
 module.exports = router;

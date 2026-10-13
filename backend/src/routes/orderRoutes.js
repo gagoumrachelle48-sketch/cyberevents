@@ -5,6 +5,8 @@ const { requireAuth } = require('../auth');
 const { makeLimiter } = require('../rateLimit');
 const orderLimiter = makeLimiter({ windowMs: 60000, max: 10, message: 'Trop d\'achats en peu de temps.' });
 const mailer = require('../mailer');
+const fraud = require('../fraud');
+const detection = require('../detection');
 
 const router = express.Router();
 
@@ -23,14 +25,18 @@ router.post('/', requireAuth, orderLimiter, async (req, res, next) => {
     const last4 = (card_number || '0000').toString().slice(-4);
     const cardHash = crypto.createHash('sha256').update((card_number || '').toString()).digest('hex');
 
+    // Scoring de fraude en temps réel (règles issues du modèle Isolation Forest)
+    const risk = await fraud.scoreTransaction({ userId: req.user.id, cardHash, ip: req.ip, quantity: qty, amount });
+    const status = risk.flagged ? 'flagged' : 'success';
+
     await client.query('BEGIN');
     const tx = await client.query(
       `INSERT INTO transactions
-         (user_id,event_id,quantity,amount,status,payment_method,card_last4,card_hash,ip,ip_country,user_agent,referer)
-       VALUES ($1,$2,$3,$4,'success','card_simulated',$5,$6,$7,$8,$9,$10)
+         (user_id,event_id,quantity,amount,status,payment_method,card_last4,card_hash,ip,ip_country,user_agent,referer,fraud_score)
+       VALUES ($1,$2,$3,$4,$5,'card_simulated',$6,$7,$8,$9,$10,$11,$12)
        RETURNING id, amount, created_at`,
-      [req.user.id, event_id, qty, amount, last4, cardHash, req.ip, 'FR',
-       req.get('user-agent') || '', req.get('referer') || '']);
+      [req.user.id, event_id, qty, amount, status, last4, cardHash, req.ip, 'FR',
+       req.get('user-agent') || '', req.get('referer') || '', risk.score]);
     const txId = tx.rows[0].id;
 
     const tickets = [];
@@ -43,9 +49,14 @@ router.post('/', requireAuth, orderLimiter, async (req, res, next) => {
     }
     await client.query('COMMIT');
 
+    if (risk.flagged) {
+      detection.raise('fraud', 'high', req.ip,
+        { transaction: txId, score: risk.score, reasons: risk.reasons });
+    }
+
     mailer.send(req.user.email, 'Confirmation de votre achat',
       `Merci ! ${qty} billet(s) pour « ${ev.rows[0].title} ». Montant : ${amount} €.`);
-    res.status(201).json({ transaction_id: txId, amount, tickets });
+    res.status(201).json({ transaction_id: txId, amount, tickets, flagged: risk.flagged });
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});
     next(e);
