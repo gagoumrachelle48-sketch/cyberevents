@@ -10,6 +10,7 @@ import MyTickets from './pages/MyTickets.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import ScanPage from './pages/ScanPage.jsx';
+import SecurityPage from './pages/SecurityPage.jsx';
 
 function Sidebar({ mode }) {
   const { user, logout } = useAuth();
@@ -28,6 +29,7 @@ function Sidebar({ mode }) {
         <span className="nav-label">Billetterie</span>
         <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Événements</NavLink>
         {user && <NavLink to="/mes-billets" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Mes billets</NavLink>}
+        {user && <NavLink to="/securite" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Sécurité</NavLink>}
 
         {(isStaff || isSecurity) && <span className="nav-label">Exploitation</span>}
         {isSecurity && <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Dashboard RSSI</NavLink>}
@@ -60,6 +62,7 @@ const TITLES = {
   '/admin': ['Administration', 'Gestion des événements, comptes et transactions'],
   '/dashboard': ['Dashboard RSSI', 'Surveillance des attaques et santé des services'],
   '/scan': ['Scan d\'entrée', 'Validation des billets QR et suivi des entrées'],
+  '/securite': ['Sécurité', 'Double authentification de votre compte'],
   '/connexion': ['Connexion', 'Accédez à votre espace'],
   '/inscription': ['Inscription', 'Créez votre compte client'],
 };
@@ -97,6 +100,7 @@ export default function App() {
             <Route path="/admin" element={<AdminPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/scan" element={<ScanPage />} />
+          <Route path="/securite" element={<SecurityPage />} />
           </Routes>
         </div>
       </div>

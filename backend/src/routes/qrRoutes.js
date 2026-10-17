@@ -19,6 +19,22 @@ router.get('/ticket/:id/qr', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Image publique du QR par jeton (utilisée comme média par WhatsApp/Twilio).
+// Le jeton EST le secret du billet : le connaître équivaut à détenir le billet,
+// donc l'image peut être servie sans authentification (indispensable pour que
+// Twilio puisse récupérer le média depuis une URL publique).
+router.get('/img/:token.png', async (req, res, next) => {
+  try {
+    const token = req.params.token;
+    const { rows } = await db.query('SELECT 1 FROM tickets WHERE qr_token=$1', [token]);
+    if (!rows.length) return res.status(404).send('QR inconnu');
+    const buf = await QRCode.toBuffer(token, { width: 300, margin: 2 });
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(buf);
+  } catch (e) { next(e); }
+});
+
 // US-025 / US-027 : valider un QR scanné à l'entrée.
 // Résultats possibles : valid, duplicate (déjà scanné), unknown (QR inconnu), wrong_event.
 router.post('/scan', async (req, res, next) => {

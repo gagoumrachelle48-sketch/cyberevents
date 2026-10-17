@@ -13,9 +13,18 @@ export function AuthProvider({ children }) {
     api('/auth/me').then((d) => setUser(d.user)).catch(() => setToken(null)).finally(() => setReady(true));
   }, []);
 
+  // Connexion : renvoie la réponse brute. Si 2FA activé, { need2fa, challenge } sans jeton.
   const login = async (email, password) => {
     const d = await api('/auth/login', { method: 'POST', body: { email, password } });
-    setToken(d.token); setUser(d.user); return d.user;
+    if (d.need2fa) return d;              // étape 2FA à compléter côté page
+    setToken(d.token); setUser(d.user);
+    return d;
+  };
+  // Étape 2FA : vérifier le code pour finir la connexion
+  const complete2fa = async (challenge, code) => {
+    const d = await api('/auth/2fa/verify', { method: 'POST', body: { challenge, code } });
+    setToken(d.token); setUser(d.user);
+    return d.user;
   };
   const register = async (payload) => {
     const d = await api('/auth/register', { method: 'POST', body: payload });
@@ -23,5 +32,5 @@ export function AuthProvider({ children }) {
   };
   const logout = () => { setToken(null); setUser(null); };
 
-  return <Ctx.Provider value={{ user, ready, login, register, logout }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, ready, login, complete2fa, register, logout }}>{children}</Ctx.Provider>;
 }

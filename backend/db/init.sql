@@ -9,6 +9,8 @@ CREATE TABLE users (
                 CHECK (role IN ('client','organizer','rssi','admin')),
   country       VARCHAR(2)   DEFAULT 'FR',      -- pour US-023 (géoloc déclarée vs IP)
   consent_at    TIMESTAMPTZ,                    -- RGPD
+  totp_secret   VARCHAR(64),                    -- bonus 2FA : secret TOTP (si activé)
+  totp_enabled  BOOLEAN NOT NULL DEFAULT false, -- bonus 2FA : double authentification active
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 

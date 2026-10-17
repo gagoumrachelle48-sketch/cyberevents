@@ -3,11 +3,15 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "vite", "build": "vite build" },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0"
+    "react-router-dom": "^6.26.0",
+    "html5-qrcode": "^2.3.8"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

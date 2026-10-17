@@ -1,14 +1,71 @@
 const express = require('express');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 const db = require('../db');
 const { requireAuth } = require('../auth');
 const { makeLimiter } = require('../rateLimit');
 const orderLimiter = makeLimiter({ windowMs: 60000, max: 10, message: 'Trop d\'achats en peu de temps.' });
 const mailer = require('../mailer');
+const whatsapp = require('../whatsapp');
 const fraud = require('../fraud');
 const detection = require('../detection');
 
 const router = express.Router();
+
+// URL publique de base (ex : https://cyberevents-api.onrender.com) pour joindre
+// l'image du QR à un message WhatsApp. Vide en local -> message texte seulement.
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
+
+// US-003 : envoyer les billets (texte + QR si URL publique) par WhatsApp.
+async function sendTicketsWhatsApp(to, event, tickets, amount) {
+  // On n'interrompt pas si "to" est vide : whatsapp.sendWhatsApp journalise quand même
+  // le message (utile pour la démo) puis s'abstient d'envoyer faute de destinataire.
+  const lines = tickets.map((t, i) => `Billet ${i + 1} : ${t.qr_token}`).join('\n');
+  const body =
+    `CyberEvents — Vos billets\n\n${event.title}\n` +
+    `Montant : ${amount} € — ${tickets.length} billet(s)\n\n${lines}\n\n` +
+    `Présentez le QR code à l'entrée (valable une seule fois).`;
+  // WhatsApp n'affiche qu'un seul média : on joint le QR du 1er billet si on a une URL publique.
+  const mediaUrl = PUBLIC_BASE_URL
+    ? `${PUBLIC_BASE_URL}/api/qr/img/${tickets[0].qr_token}.png`
+    : null;
+  return whatsapp.sendWhatsApp({ to, body, mediaUrl });
+}
+
+// US-003 / US-024 : composer et envoyer l'email contenant les billets + QR code.
+// Chaque QR est intégré dans l'email comme image (pièce jointe en ligne via "cid").
+async function sendTicketsEmail(to, event, tickets, amount) {
+  const attachments = [];
+  let cards = '';
+  for (let i = 0; i < tickets.length; i++) {
+    const tk = tickets[i];
+    const cid = `qr${tk.id}@cyberevents`;
+    const png = await QRCode.toBuffer(tk.qr_token, { width: 240, margin: 1 });
+    attachments.push({ filename: `billet-${tk.id}.png`, content: png, cid });
+    cards += `
+      <tr><td style="padding:16px;border:1px solid #e5e7eb;text-align:center">
+        <div style="font-weight:600;margin-bottom:8px">Billet n°${i + 1}</div>
+        <img src="cid:${cid}" alt="QR code du billet" width="200" height="200" />
+        <div style="font-family:monospace;font-size:11px;color:#6b7280;margin-top:6px">${tk.qr_token}</div>
+      </td></tr>`;
+  }
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#111">
+      <h2 style="color:#f59e0b">CyberEvents — Vos billets</h2>
+      <p>Merci pour votre achat ! Voici vos billets pour :</p>
+      <p style="font-size:18px;font-weight:700">${event.title}</p>
+      <p>Montant payé : <strong>${amount} €</strong> — ${tickets.length} billet(s)</p>
+      <p>Présentez le QR code ci-dessous à l'entrée. Chaque QR n'est valable qu'une seule fois.</p>
+      <table style="border-collapse:collapse;width:100%">${cards}</table>
+      <p style="color:#6b7280;font-size:12px;margin-top:20px">
+        CyberEvents — billet électronique. Ne partagez pas votre QR code.
+      </p>
+    </div>`;
+  const text = `CyberEvents — Vos billets\n\n${event.title}\nMontant : ${amount} €\n\n` +
+    tickets.map((t, i) => `Billet ${i + 1} : ${t.qr_token}`).join('\n') +
+    `\n\nPrésentez le QR code à l'entrée (valable une seule fois).`;
+  return mailer.sendMail({ to, subject: `Vos billets — ${event.title}`, text, html, attachments });
+}
 
 // US-003 : acheter un billet (paiement simulé) -> transaction + billets + QR
 router.post('/', requireAuth, orderLimiter, async (req, res, next) => {
@@ -49,13 +106,25 @@ router.post('/', requireAuth, orderLimiter, async (req, res, next) => {
     }
     await client.query('COMMIT');
 
+    // Destinataire WhatsApp : téléphone du compte si renseigné, sinon numéro de démo.
+    const waTo = (req.user.phone || process.env.DEMO_WHATSAPP_TO || '').trim();
+
     if (risk.flagged) {
       detection.raise('fraud', 'high', req.ip,
         { transaction: txId, score: risk.score, reasons: risk.reasons });
+      // Achat bloqué : pas d'envoi de billets. Les billets partiront après validation admin.
+      const pendingMsg = `Votre achat de ${qty} billet(s) pour « ${ev.rows[0].title} » (${amount} €) ` +
+        `est en cours de vérification par notre équipe sécurité. ` +
+        `Vous recevrez vos billets dès validation.`;
+      // Promise.resolve(...) : ne plante pas même si une fonction ne renvoie pas de promesse.
+      Promise.resolve(mailer.send(req.user.email, 'Achat en cours de vérification', pendingMsg)).catch(() => {});
+      Promise.resolve(whatsapp.sendWhatsApp({ to: waTo, body: `CyberEvents — ${pendingMsg}` })).catch(() => {});
+    } else {
+      // Achat validé : envoi automatique des billets avec leur QR code (email + WhatsApp).
+      Promise.resolve(sendTicketsEmail(req.user.email, ev.rows[0], tickets, amount)).catch(() => {});
+      Promise.resolve(sendTicketsWhatsApp(waTo, ev.rows[0], tickets, amount)).catch(() => {});
     }
 
-    mailer.send(req.user.email, 'Confirmation de votre achat',
-      `Merci ! ${qty} billet(s) pour « ${ev.rows[0].title} ». Montant : ${amount} €.`);
     res.status(201).json({ transaction_id: txId, amount, tickets, flagged: risk.flagged });
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});
