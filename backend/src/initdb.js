@@ -13,12 +13,12 @@ async function initIfNeeded() {
     );
     if (check.rows[0].t) {
       console.log('Base déjà initialisée.');
-      return;
+    } else {
+      console.log('Initialisation de la base (première fois)…');
+      const sql = fs.readFileSync(path.join(__dirname, '..', 'db', 'init.sql'), 'utf8');
+      await db.query(sql);
+      console.log('Base initialisée : schéma + données de démo chargés.');
     }
-    console.log('Initialisation de la base (première fois)…');
-    const sql = fs.readFileSync(path.join(__dirname, '..', 'db', 'init.sql'), 'utf8');
-    await db.query(sql);
-    console.log('Base initialisée : schéma + données de démo chargés.');
   } catch (e) {
     console.error('Erreur init base :', e.message);
   }
