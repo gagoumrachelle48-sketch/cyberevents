@@ -20,4 +20,17 @@ function verifyCode(secret, code) {
   catch { return false; }
 }
 
-module.exports = { generateSetup, verifyCode };
+// --- 2FA par SMS ---
+const crypto = require('crypto');
+
+// Génère un code numérique à 6 chiffres (ex : "042517")
+function generateSmsCode() {
+  return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
+// On ne stocke jamais le code en clair : on garde son empreinte SHA-256.
+function hashSmsCode(code) {
+  return crypto.createHash('sha256').update(String(code).trim()).digest('hex');
+}
+
+module.exports = { generateSetup, verifyCode, generateSmsCode, hashSmsCode };

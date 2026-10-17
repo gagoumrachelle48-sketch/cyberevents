@@ -29,9 +29,14 @@ async function initIfNeeded() {
 
 async function runMigrations() {
   const migrations = [
-    // Bonus 2FA
+    // Bonus 2FA par application (TOTP)
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(64)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT false",
+    // Bonus 2FA par SMS
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS sms_enabled BOOLEAN NOT NULL DEFAULT false",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS sms_code VARCHAR(64)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS sms_code_expires TIMESTAMPTZ",
     // Bonus détection de fraude (colonnes de transactions)
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS card_hash VARCHAR(64)",
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS ip VARCHAR(45)",

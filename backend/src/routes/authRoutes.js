@@ -7,8 +7,38 @@ const detection = require('../detection');
 const { makeLimiter } = require('../rateLimit');
 const { requireAuth } = require('../auth');
 const twofa = require('../twofa');
+const sms = require('../sms');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config');
+
+// Génère un code SMS, le stocke (haché, valable 5 min) et l'envoie au téléphone du compte.
+async function issueSmsCode(user) {
+  const code = twofa.generateSmsCode();
+  const hash = twofa.hashSmsCode(code);
+  await db.query(
+    "UPDATE users SET sms_code=$1, sms_code_expires=NOW() + INTERVAL '5 minutes' WHERE id=$2",
+    [hash, user.id]);
+  await sms.sendSMS({ to: user.phone, body: `CyberEvents : votre code de connexion est ${code} (valable 5 min).` });
+}
+
+// Vérifie un code SMS : bon hash ET non expiré.
+async function verifySmsCode(userId, code) {
+  const { rows } = await db.query(
+    'SELECT sms_code, sms_code_expires FROM users WHERE id=$1', [userId]);
+  const u = rows[0];
+  if (!u || !u.sms_code || !u.sms_code_expires) return false;
+  if (new Date(u.sms_code_expires) < new Date()) return false;
+  if (twofa.hashSmsCode(code) !== u.sms_code) return false;
+  // code à usage unique : on l'efface après succès
+  await db.query('UPDATE users SET sms_code=NULL, sms_code_expires=NULL WHERE id=$1', [userId]);
+  return true;
+}
+
+// Masque un numéro pour l'affichage : +336XXXXXX89
+function maskPhone(p) {
+  if (!p || p.length < 4) return 'votre téléphone';
+  return p.slice(0, 3) + 'XXXXXX' + p.slice(-2);
+}
 
 // T30 : max 5 connexions / minute / IP en mode secure
 const loginLimiter = makeLimiter({ windowMs: 60000, max: 5, message: 'Trop de tentatives de connexion.' });
@@ -61,10 +91,16 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       return res.status(401).json({ error: 'E-mail ou mot de passe incorrect.' });
     }
 
-    // 2FA : si activé, on ne délivre pas encore le jeton ; on demande le code
+    // 2FA : si activé, on ne délivre pas encore le jeton ; on demande le code.
+    // Priorité au SMS s'il est activé, sinon l'application (TOTP).
+    if (user.sms_enabled && user.phone) {
+      await issueSmsCode(user);
+      const challenge = jwt.sign({ uid: user.id, step: '2fa', method: 'sms' }, JWT_SECRET, { expiresIn: '5m' });
+      return res.json({ need2fa: true, method: 'sms', hint: maskPhone(user.phone), challenge });
+    }
     if (user.totp_enabled) {
-      const challenge = jwt.sign({ uid: user.id, step: '2fa' }, JWT_SECRET, { expiresIn: '5m' });
-      return res.json({ need2fa: true, challenge });
+      const challenge = jwt.sign({ uid: user.id, step: '2fa', method: 'app' }, JWT_SECRET, { expiresIn: '5m' });
+      return res.json({ need2fa: true, method: 'app', challenge });
     }
 
     res.json({ token: sign(user),
@@ -89,19 +125,31 @@ router.post('/2fa/verify', async (req, res, next) => {
 
     const { rows } = await db.query('SELECT * FROM users WHERE id=$1', [payload.uid]);
     const user = rows[0];
-    if (!user || !twofa.verifyCode(user.totp_secret, code))
-      return res.status(401).json({ error: 'Code incorrect.' });
+    if (!user) return res.status(401).json({ error: 'Code incorrect.' });
+
+    // Vérification selon la méthode choisie à la connexion
+    const method = payload.method || 'app';
+    const ok = method === 'sms'
+      ? await verifySmsCode(user.id, code)
+      : twofa.verifyCode(user.totp_secret, code);
+    if (!ok) return res.status(401).json({ error: 'Code incorrect.' });
 
     res.json({ token: sign(user),
       user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role } });
   } catch (e) { next(e); }
 });
 
-// État du 2FA pour l'utilisateur connecté
+// État du 2FA pour l'utilisateur connecté (application + SMS)
 router.get('/2fa/status', requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await db.query('SELECT totp_enabled FROM users WHERE id=$1', [req.user.id]);
-    res.json({ enabled: !!(rows[0] && rows[0].totp_enabled) });
+    const { rows } = await db.query(
+      'SELECT totp_enabled, sms_enabled, phone FROM users WHERE id=$1', [req.user.id]);
+    const u = rows[0] || {};
+    res.json({
+      enabled: !!u.totp_enabled,           // 2FA par application (compat. écran existant)
+      smsEnabled: !!u.sms_enabled,         // 2FA par SMS
+      phone: u.phone || '',
+    });
   } catch (e) { next(e); }
 });
 
@@ -127,11 +175,47 @@ router.post('/2fa/enable', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// Désactiver le 2FA
+// Désactiver le 2FA (application)
 router.post('/2fa/disable', requireAuth, async (req, res, next) => {
   try {
     await db.query('UPDATE users SET totp_enabled=false, totp_secret=NULL WHERE id=$1', [req.user.id]);
     res.json({ enabled: false });
+  } catch (e) { next(e); }
+});
+
+// --- 2FA par SMS ---
+
+// Démarrer : enregistre le téléphone et envoie un premier code de vérification
+router.post('/2fa/sms/setup', requireAuth, async (req, res, next) => {
+  try {
+    const phone = (req.body && req.body.phone || '').trim();
+    // Format international attendu, ex : +33612345678
+    if (!/^\+?\d{8,15}$/.test(phone))
+      return res.status(400).json({ error: 'Numéro invalide. Format attendu : +33612345678' });
+    await db.query('UPDATE users SET phone=$1, sms_enabled=false WHERE id=$2', [phone, req.user.id]);
+    await issueSmsCode({ id: req.user.id, phone });
+    res.json({ sent: true, hint: maskPhone(phone) });
+  } catch (e) { next(e); }
+});
+
+// Activer le 2FA par SMS après vérification du code reçu
+router.post('/2fa/sms/enable', requireAuth, async (req, res, next) => {
+  try {
+    const { code } = req.body || {};
+    const ok = await verifySmsCode(req.user.id, code);
+    if (!ok) return res.status(401).json({ error: 'Code incorrect ou expiré, réessayez.' });
+    await db.query('UPDATE users SET sms_enabled=true WHERE id=$1', [req.user.id]);
+    res.json({ smsEnabled: true });
+  } catch (e) { next(e); }
+});
+
+// Désactiver le 2FA par SMS
+router.post('/2fa/sms/disable', requireAuth, async (req, res, next) => {
+  try {
+    await db.query(
+      'UPDATE users SET sms_enabled=false, sms_code=NULL, sms_code_expires=NULL WHERE id=$1',
+      [req.user.id]);
+    res.json({ smsEnabled: false });
   } catch (e) { next(e); }
 });
 

@@ -9,13 +9,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [challenge, setChallenge] = useState(null);   // défini si le 2FA est demandé
+  const [method, setMethod] = useState('app');        // 'app' ou 'sms'
+  const [hint, setHint] = useState('');               // numéro masqué pour le SMS
   const [code, setCode] = useState('');
 
   const submit = async (e) => {
     e.preventDefault(); setError('');
     try {
       const d = await login(email, password);
-      if (d.need2fa) { setChallenge(d.challenge); return; }   // bascule sur l'étape code
+      if (d.need2fa) { setChallenge(d.challenge); setMethod(d.method || 'app'); setHint(d.hint || ''); return; }
       nav('/');
     } catch (err) { setError(err.message); }
   };
@@ -45,7 +47,9 @@ export default function LoginPage() {
         ) : (
           <>
             <h2>Vérification en deux étapes</h2>
-            <p className="muted">Entrez le code à 6 chiffres affiché dans votre application d'authentification.</p>
+            <p className="muted">{method === 'sms'
+              ? `Entrez le code à 6 chiffres envoyé par SMS au ${hint || 'votre téléphone'}.`
+              : "Entrez le code à 6 chiffres affiché dans votre application d'authentification."}</p>
             <form onSubmit={submitCode}>
               <label className="field">Code
                 <input className="mono" value={code} onChange={(e) => setCode(e.target.value)}
