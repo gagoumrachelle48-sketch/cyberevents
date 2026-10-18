@@ -25,6 +25,56 @@ async function initIfNeeded() {
   // Migrations idempotentes : appliquées à CHAQUE démarrage, que la base soit neuve
   // ou existante. Évite les erreurs « colonne manquante » après ajout d'un bonus.
   await runMigrations();
+  // US-029 : jeu de ventes de démonstration pour alimenter l'analytics (idempotent).
+  await seedDemoSales();
+}
+
+// US-029 : génère ~700 ventes réussies sur 90 jours, avec saisonnalité (week-end) et
+// quelques pics marketing, pour que l'analytics de ventes et la prévision soient parlantes.
+// Ne s'exécute qu'une seule fois (si moins de 200 ventes réussies existent déjà).
+async function seedDemoSales() {
+  try {
+    const { rows: cnt } = await db.query(
+      "SELECT COUNT(*)::int AS n FROM transactions WHERE status='success'");
+    if (cnt[0].n >= 200) { console.log('Ventes de démo déjà présentes.'); return; }
+    const { rows: events } = await db.query('SELECT id, price FROM events');
+    const { rows: users } = await db.query('SELECT id FROM users');
+    if (!events.length || !users.length) return;
+    const paid = events.filter((e) => Number(e.price) > 0);
+    const pool = paid.length ? paid : events;
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const peakDays = new Set([12, 40, 68]); // jours (il y a N jours) avec un pic d'achat
+    const data = [];
+    for (let d = 89; d >= 0; d--) {
+      const date = new Date(); date.setDate(date.getDate() - d);
+      const dow = date.getDay();
+      let base = 3 + ((dow === 0 || dow === 6) ? 4 : 0) + Math.floor((89 - d) / 25);
+      if (peakDays.has(d)) base += 14;
+      const count = Math.max(0, Math.round(base + (Math.random() * 3 - 1)));
+      for (let k = 0; k < count; k++) {
+        const ev = pick(pool);
+        const qty = 1 + Math.floor(Math.random() * 3);
+        const amount = Math.round(qty * Number(ev.price) * 100) / 100;
+        const ts = new Date(date);
+        ts.setHours(8 + Math.floor(Math.random() * 13), Math.floor(Math.random() * 60), 0, 0);
+        const ip = '196.47.12.' + (1 + Math.floor(Math.random() * 250));
+        data.push([pick(users).id, ev.id, qty, amount, ip, ts.toISOString()]);
+      }
+    }
+    if (!data.length) return;
+    const COLS = '(user_id,event_id,quantity,amount,status,payment_method,ip,ip_country,created_at)';
+    for (let s = 0; s < data.length; s += 200) {
+      const chunk = data.slice(s, s + 200);
+      const ph = chunk.map((_, j) => {
+        const o = j * 6;
+        return `($${o+1},$${o+2},$${o+3},$${o+4},'success','card_simulated',$${o+5},'FR',$${o+6})`;
+      }).join(',');
+      await db.query(`INSERT INTO transactions ${COLS} VALUES ${ph}`, chunk.flat());
+    }
+    console.log(`Ventes de démo générées : ${data.length} transactions sur 90 jours.`);
+  } catch (e) {
+    console.error('[seedDemoSales] ignorée :', e.message);
+  }
 }
 
 async function runMigrations() {

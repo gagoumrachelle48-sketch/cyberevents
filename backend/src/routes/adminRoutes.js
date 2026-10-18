@@ -94,4 +94,71 @@ router.post('/fraud-queue/:id/review', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// US-029 : analytics de ventes + prévision des pics d'achat (persona Lisa, organisatrice)
+// Prévision : tendance linéaire (moindres carrés) × saisonnalité par jour de semaine.
+// Un jour prévu est marqué « pic » si sa prévision dépasse la moyenne + 1 écart-type.
+function forecastSales(daily, horizon = 14) {
+  if (!daily.length) return { forecast: [], peaks: [], trend: 0 };
+  const rev = daily.map((d) => Number(d.revenue));
+  const n = rev.length;
+  const xs = rev.map((_, i) => i);
+  const mx = xs.reduce((s, v) => s + v, 0) / n;
+  const my = rev.reduce((s, v) => s + v, 0) / n;
+  let num = 0, den = 0;
+  xs.forEach((x, i) => { num += (x - mx) * (rev[i] - my); den += (x - mx) ** 2; });
+  const a = den ? num / den : 0;          // pente de la tendance
+  const b = my - a * mx;
+  // saisonnalité : facteur moyen de chaque jour de semaine rapporté à la moyenne
+  const dow = Array.from({ length: 7 }, () => []);
+  daily.forEach((d) => { dow[new Date(d.date).getUTCDay()].push(Number(d.revenue)); });
+  const avg = my || 1;
+  const season = dow.map((arr) => (arr.length ? (arr.reduce((s, v) => s + v, 0) / arr.length) / avg : 1));
+  const last = new Date(daily[daily.length - 1].date);
+  const preds = [];
+  for (let k = 1; k <= horizon; k++) {
+    const dt = new Date(last); dt.setUTCDate(dt.getUTCDate() + k);
+    const base = Math.max(0, a * (n - 1 + k) + b);
+    const val = base * (season[dt.getUTCDay()] || 1);
+    preds.push({ date: dt.toISOString().slice(0, 10), revenue_pred: Math.round(val * 100) / 100, is_peak: false });
+  }
+  const vals = preds.map((p) => p.revenue_pred);
+  const m = vals.reduce((s, v) => s + v, 0) / vals.length;
+  const sd = Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / vals.length);
+  const thr = m + sd;
+  preds.forEach((p) => { p.is_peak = sd > 0 && p.revenue_pred >= thr; });
+  const peaks = [...daily].sort((x, y) => Number(y.revenue) - Number(x.revenue)).slice(0, 3)
+    .map((d) => ({ date: d.date, revenue: Number(d.revenue) }));
+  return { forecast: preds, peaks, trend: Math.round(a * 100) / 100 };
+}
+
+router.get('/analytics', async (req, res, next) => {
+  try {
+    const kpi = (await db.query(
+      `SELECT COALESCE(SUM(amount),0)::float AS revenue,
+              COALESCE(SUM(quantity),0)::int  AS tickets,
+              COUNT(*)::int                   AS orders,
+              COALESCE(AVG(amount),0)::float  AS avg_basket
+       FROM transactions WHERE status='success'`)).rows[0];
+    const byEvent = (await db.query(
+      `SELECT e.title AS event_title,
+              COALESCE(SUM(tr.amount),0)::float AS revenue,
+              COALESCE(SUM(tr.quantity),0)::int AS tickets
+       FROM transactions tr JOIN events e ON e.id=tr.event_id
+       WHERE tr.status='success'
+       GROUP BY e.title ORDER BY revenue DESC`)).rows;
+    const daily = (await db.query(
+      `SELECT to_char(date_trunc('day',created_at),'YYYY-MM-DD') AS date,
+              SUM(amount)::float AS revenue, SUM(quantity)::int AS tickets
+       FROM transactions
+       WHERE status='success' AND created_at >= NOW() - INTERVAL '90 days'
+       GROUP BY 1 ORDER BY 1`)).rows;
+    const byHour = (await db.query(
+      `SELECT EXTRACT(HOUR FROM created_at)::int AS hour, SUM(quantity)::int AS tickets
+       FROM transactions WHERE status='success'
+       GROUP BY 1 ORDER BY 1`)).rows;
+    const { forecast, peaks, trend } = forecastSales(daily);
+    res.json({ kpi, by_event: byEvent, daily, by_hour: byHour, forecast, peaks, trend });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;

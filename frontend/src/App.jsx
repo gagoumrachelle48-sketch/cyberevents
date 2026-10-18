@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import MyTickets from './pages/MyTickets.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import ScanPage from './pages/ScanPage.jsx';
 import SecurityPage from './pages/SecurityPage.jsx';
 
@@ -35,6 +36,7 @@ function Sidebar({ mode }) {
         {isSecurity && <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Dashboard RSSI</NavLink>}
         {/* VULN-4 : lien masqué côté client seulement ; l'API admin reste ouverte en mode vuln. */}
         {isStaff && <NavLink to="/admin" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Administration</NavLink>}
+        {isStaff && <NavLink to="/analytics" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Analytics ventes</NavLink>}
         {(isStaff || isSecurity) && <NavLink to="/scan" className={({ isActive }) => isActive ? 'active' : ''}><span className="dot" />Scan d'entrée</NavLink>}
 
         <span className="nav-label">Compte</span>
@@ -61,6 +63,7 @@ const TITLES = {
   '/mes-billets': ['Mes billets', 'Vos réservations et QR codes'],
   '/admin': ['Administration', 'Gestion des événements, comptes et transactions'],
   '/dashboard': ['Dashboard RSSI', 'Surveillance des attaques et santé des services'],
+  '/analytics': ['Analytics ventes', 'Chiffre d\'affaires, comportements et prévision des pics d\'achat'],
   '/scan': ['Scan d\'entrée', 'Validation des billets QR et suivi des entrées'],
   '/securite': ['Sécurité', 'Double authentification de votre compte'],
   '/connexion': ['Connexion', 'Accédez à votre espace'],
@@ -99,6 +102,7 @@ export default function App() {
             <Route path="/mes-billets" element={<MyTickets />} />
             <Route path="/admin" element={<AdminPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/scan" element={<ScanPage />} />
           <Route path="/securite" element={<SecurityPage />} />
           </Routes>
