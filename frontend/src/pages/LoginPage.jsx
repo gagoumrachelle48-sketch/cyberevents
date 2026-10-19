@@ -42,7 +42,8 @@ export default function LoginPage() {
               {error && <p className="error">{error}</p>}
               <button type="submit">Se connecter</button>
             </form>
-            <p className="muted" style={{ marginTop: 16 }}>Pas de compte ? <Link to="/inscription" style={{ color: 'var(--signal)' }}>Créer un compte</Link></p>
+            <p className="muted" style={{ marginTop: 14 }}><Link to="/mot-de-passe-oublie" style={{ color: 'var(--signal)' }}>Mot de passe oublié ?</Link></p>
+            <p className="muted" style={{ marginTop: 6 }}>Pas de compte ? <Link to="/inscription" style={{ color: 'var(--signal)' }}>Créer un compte</Link></p>
           </>
         ) : (
           <>

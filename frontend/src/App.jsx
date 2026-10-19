@@ -6,6 +6,8 @@ import EventsPage from './pages/EventsPage.jsx';
 import EventDetail from './pages/EventDetail.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import MyTickets from './pages/MyTickets.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -68,6 +70,8 @@ const TITLES = {
   '/securite': ['Sécurité', 'Double authentification de votre compte'],
   '/connexion': ['Connexion', 'Accédez à votre espace'],
   '/inscription': ['Inscription', 'Créez votre compte client'],
+  '/mot-de-passe-oublie': ['Mot de passe oublié', 'Recevez un lien de réinitialisation par e-mail'],
+  '/reinitialiser': ['Réinitialisation', 'Choisissez un nouveau mot de passe'],
 };
 
 function Topbar() {
@@ -99,6 +103,8 @@ export default function App() {
             <Route path="/evenements/:id" element={<EventDetail />} />
             <Route path="/connexion" element={<LoginPage />} />
             <Route path="/inscription" element={<RegisterPage />} />
+            <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
+            <Route path="/reinitialiser" element={<ResetPasswordPage />} />
             <Route path="/mes-billets" element={<MyTickets />} />
             <Route path="/admin" element={<AdminPage />} />
           <Route path="/dashboard" element={<Dashboard />} />

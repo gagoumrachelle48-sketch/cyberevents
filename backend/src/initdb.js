@@ -87,6 +87,9 @@ async function runMigrations() {
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS sms_enabled BOOLEAN NOT NULL DEFAULT false",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS sms_code VARCHAR(64)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS sms_code_expires TIMESTAMPTZ",
+    // Bonus mot de passe oublié (réinitialisation par e-mail)
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(64)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ",
     // Bonus détection de fraude (colonnes de transactions)
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS card_hash VARCHAR(64)",
     "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS ip VARCHAR(45)",

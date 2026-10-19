@@ -219,4 +219,60 @@ router.post('/2fa/sms/disable', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ===== Bonus : mot de passe oublié (réinitialisation par e-mail) =====
+const crypto = require('crypto');
+const WEB_URL = process.env.WEB_URL || 'https://cyberevents-web.onrender.com';
+const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
+const forgotLimiter = makeLimiter({ windowMs: 60000, max: 5, message: 'Trop de demandes. Réessayez dans une minute.' });
+
+// 1) Demande de réinitialisation : envoie un lien par e-mail (réponse générique).
+router.post('/forgot', forgotLimiter, async (req, res, next) => {
+  try {
+    const email = ((req.body && req.body.email) || '').trim();
+    const generic = { message: "Si un compte existe pour cette adresse, un e-mail de réinitialisation vient d'être envoyé." };
+    if (!email) return res.json(generic);
+    const { rows } = await db.query('SELECT id, full_name FROM users WHERE email=$1', [email]);
+    const user = rows[0];
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await db.query(
+        "UPDATE users SET reset_token=$1, reset_token_expires=NOW() + INTERVAL '30 minutes' WHERE id=$2",
+        [sha256(token), user.id]);
+      const link = `${WEB_URL}/reinitialiser?token=${token}`;
+      await mailer.sendMail({
+        to: email,
+        subject: 'CyberEvents — réinitialisation de votre mot de passe',
+        text: `Bonjour ${user.full_name || ''},\n\n` +
+          `Vous avez demandé à réinitialiser votre mot de passe.\n` +
+          `Ouvrez ce lien (valable 30 minutes) pour en choisir un nouveau :\n${link}\n\n` +
+          `Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.`,
+        html: `<p>Bonjour ${user.full_name || ''},</p>` +
+          `<p>Vous avez demandé à réinitialiser votre mot de passe CyberEvents.</p>` +
+          `<p><a href="${link}">Choisir un nouveau mot de passe</a> (lien valable 30 minutes).</p>` +
+          `<p style="color:#888">Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</p>`,
+      });
+    }
+    res.json(generic);
+  } catch (e) { next(e); }
+});
+
+// 2) Réinitialisation effective avec le jeton reçu par e-mail.
+router.post('/reset', async (req, res, next) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password) return res.status(400).json({ error: 'Jeton et nouveau mot de passe requis.' });
+    const policy = pw.policyError(password);
+    if (policy) return res.status(400).json({ error: policy });
+    const { rows } = await db.query(
+      'SELECT id FROM users WHERE reset_token=$1 AND reset_token_expires > NOW()', [sha256(token)]);
+    const user = rows[0];
+    if (!user) return res.status(400).json({ error: 'Lien invalide ou expiré. Refaites une demande.' });
+    const hashed = await pw.store(password);
+    await db.query(
+      'UPDATE users SET password=$1, reset_token=NULL, reset_token_expires=NULL WHERE id=$2',
+      [hashed, user.id]);
+    res.json({ message: 'Mot de passe mis à jour. Vous pouvez vous connecter.' });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;
