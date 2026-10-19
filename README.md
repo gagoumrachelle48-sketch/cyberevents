@@ -11,15 +11,13 @@ Projet de rentrée ESIS-2 / CPDIA-2 — encadré par Joel BANKA.
 
 ## Équipe
 
-Groupe de 5 — ESIS-2 / CPDIA-2.
+Groupe de 3 — ESIS-2 / CPDIA-2.
 
 | Membre | Filière | Rôle | Périmètre | Contact |
 |--------|---------|------|-----------|---------|
-| **ESSID Fatma** | CPDIA-DS | Product Owner | Backlog, priorités, KPI, démos | esfatma@etudiant-esic.fr |
-| **Kelly GAGOUN** | ESIS-CIC | Scrum Master + Infra | Daily, Docker, base, logs, déploiement | gakelly@etudiant-esic.fr |
-| **MBOUOPDA Darwin** | ESIS-CIC | Sécurité | Failles, corrections, alertes, rapport | mbdarwin@etudiant-esic.fr |
+| **Kelly GAGOUN** | ESIS-CIC | Product Owner & Scrum Master + Infra | Backlog, priorités, KPI, démos ; Docker, base, logs, déploiement | gakelly@etudiant-esic.fr |
+| **MBOUOPDA Darwin** | ESIS-CIC | Sécurité & Data / IA | Failles, corrections, alertes, rapport ; jeux de données, détection, fraude | mbdarwin@etudiant-esic.fr |
 | **LOUKOU Franck** | ESIS-ILDE | Application | Billetterie, admin, espace client, QR | lofranck@etudiant-esic.fr |
-| **MOALLA Rahma** | CPDIA-DS | Data / IA | Jeux de données, détection, fraude | morahma@etudiant-esic.fr |
 
 Méthode agile (Scrum) sur 4 sprints, du 24 septembre au 21 octobre 2026.
 Planning détaillé et répartition des 67 tâches : [`docs/Planning_Cyber-Evenements.pdf`](docs/Planning_Cyber-Evenements.pdf).
