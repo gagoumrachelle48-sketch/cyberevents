@@ -87,11 +87,30 @@ export default function ScanPage() {
           {last && (
             <div className={`scan-result ${RESULT_UI[last.result]?.cls || 'danger'}`}>
               <div className="scan-verdict">{RESULT_UI[last.result]?.label || 'REFUSÉ'}</div>
-              {last.title && <div>{last.title}</div>}
-              {last.holder && <div className="muted">{last.holder}</div>}
-              {last.result === 'duplicate' && last.first_scan &&
-                <div className="muted" style={{ fontSize: '.8rem' }}>
-                  Premier scan : {new Date(last.first_scan).toLocaleString('fr-FR')}</div>}
+
+              {last.title ? (
+                <>
+                  <div className="scan-event">{last.title}</div>
+                  <dl className="scan-details">
+                    {last.category && (<><dt>Catégorie</dt><dd>{last.category}</dd></>)}
+                    {last.starts_at && (<><dt>Date de l'événement</dt>
+                      <dd>{new Date(last.starts_at).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}</dd></>)}
+                    {(last.price !== undefined && last.price !== null) && (<><dt>Tarif</dt>
+                      <dd>{Number(last.price) > 0 ? `${Number(last.price).toFixed(2)} €` : 'Gratuit'}</dd></>)}
+                    {last.holder && (<><dt>Titulaire</dt><dd>{last.holder}</dd></>)}
+                    {last.email && (<><dt>E-mail</dt><dd className="mono">{last.email}</dd></>)}
+                    {last.ticket_id && (<><dt>N° de billet</dt><dd className="mono">#{last.ticket_id}</dd></>)}
+                    {last.purchased_at && (<><dt>Acheté le</dt>
+                      <dd>{new Date(last.purchased_at).toLocaleDateString('fr-FR')}</dd></>)}
+                    {last.result === 'duplicate' && last.first_scan && (<><dt>Premier scan</dt>
+                      <dd className="danger-text">{new Date(last.first_scan).toLocaleString('fr-FR')}</dd></>)}
+                  </dl>
+                </>
+              ) : (
+                <div className="muted" style={{ marginTop: 6 }}>
+                  Ce QR ne correspond à aucun billet enregistré.
+                </div>
+              )}
             </div>
           )}
         </section>

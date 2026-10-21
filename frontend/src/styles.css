@@ -195,5 +195,11 @@ label.field input, label.field textarea, label.field select { min-width: 160px; 
 .scan-result.ok .scan-verdict { color: var(--ok); }
 .scan-result.danger .scan-verdict { color: var(--danger); }
 .scan-result.warn .scan-verdict { color: var(--signal); }
+.scan-event { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+.scan-details { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px;
+  text-align: left; margin: 0; padding: 12px 4px 2px; border-top: 1px solid rgba(255,255,255,.12); }
+.scan-details dt { color: var(--muted); font-size: .82rem; white-space: nowrap; }
+.scan-details dd { margin: 0; font-size: .9rem; font-weight: 600; }
+.scan-details .danger-text { color: var(--danger); }
 
 @media (max-width: 860px) { .scan-grid { grid-template-columns: 1fr; } }

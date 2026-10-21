@@ -43,10 +43,24 @@ router.post('/scan', async (req, res, next) => {
     if (!token) return res.status(400).json({ error: 'QR vide' });
 
     const t = await db.query(
-      `SELECT t.id, t.event_id, t.scanned_at, e.title, u.full_name
+      `SELECT t.id AS ticket_id, t.event_id, t.scanned_at, t.created_at AS purchased_at,
+              e.title, e.category, e.starts_at, e.price,
+              u.full_name, u.email
        FROM tickets t JOIN events e ON e.id=t.event_id
        LEFT JOIN users u ON u.id=t.user_id
        WHERE t.qr_token=$1`, [token]);
+
+    // Infos complètes de l'événement et du billet (affichées après le scan)
+    const ticketInfo = (tk) => ({
+      ticket_id:    tk.ticket_id,
+      title:        tk.title,
+      category:     tk.category,
+      starts_at:    tk.starts_at,
+      price:        tk.price,
+      holder:       tk.full_name,
+      email:        tk.email,
+      purchased_at: tk.purchased_at,
+    });
 
     let result, detail = {};
     if (!t.rows.length) {
@@ -56,15 +70,15 @@ router.post('/scan', async (req, res, next) => {
       const tk = t.rows[0];
       if (event_id && Number(event_id) !== tk.event_id) {
         result = 'wrong_event';
-        detail = { expected: tk.event_id, scanned_for: event_id };
+        detail = { ...ticketInfo(tk), expected: tk.event_id, scanned_for: event_id };
       } else if (tk.scanned_at) {
         result = 'duplicate';                               // US-027 : doublon
-        detail = { title: tk.title, holder: tk.full_name, first_scan: tk.scanned_at };
+        detail = { ...ticketInfo(tk), first_scan: tk.scanned_at };
         detection.raise('qr_fraud', 'medium', req.ip, { token: token.slice(0, 12), reason: 'duplicate' });
       } else {
         result = 'valid';
-        await db.query('UPDATE tickets SET scanned_at=NOW() WHERE id=$1', [tk.id]);
-        detail = { title: tk.title, holder: tk.full_name };
+        await db.query('UPDATE tickets SET scanned_at=NOW() WHERE id=$1', [tk.ticket_id]);
+        detail = ticketInfo(tk);
       }
     }
 
@@ -72,7 +86,7 @@ router.post('/scan', async (req, res, next) => {
     await db.query(
       `INSERT INTO qr_scans (qr_token, ticket_id, event_id, gate, controller, result)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      [token, t.rows[0]?.id || null, event_id || t.rows[0]?.event_id || null,
+      [token, t.rows[0]?.ticket_id || null, event_id || t.rows[0]?.event_id || null,
        gate || 'A', controller || 'scan-auto', result]);
 
     res.json({ result, ...detail });
