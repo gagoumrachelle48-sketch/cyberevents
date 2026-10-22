@@ -15,10 +15,20 @@ export default function ScanPage() {
   const [entries, setEntries] = useState({ recent: [], stats: [] });
   const [scanning, setScanning] = useState(false);
   const [camError, setCamError] = useState('');
+  const [events, setEvents] = useState([]);
+  const [eventId, setEventId] = useState('');   // '' = tous les événements
   const scannerRef = useRef(null);
+  const eventIdRef = useRef('');
+  eventIdRef.current = eventId;
 
-  const load = () => api('/qr/entries').then(setEntries).catch(() => {});
-  useEffect(() => { load(); const id = setInterval(load, 4000); return () => clearInterval(id); }, []);
+  const load = () => {
+    const qs = eventIdRef.current ? `?event_id=${eventIdRef.current}` : '';
+    api('/qr/entries' + qs).then(setEntries).catch(() => {});
+  };
+  // charger la liste des événements (une fois)
+  useEffect(() => { api('/events').then(setEvents).catch(() => {}); }, []);
+  // (re)charger le suivi quand l'événement contrôlé change + rafraîchir en continu
+  useEffect(() => { load(); const id = setInterval(load, 4000); return () => clearInterval(id); }, [eventId]);
   // Arrêter la caméra si on quitte la page
   useEffect(() => () => { stopCamera(); }, []);
 
@@ -27,7 +37,9 @@ export default function ScanPage() {
     const t = (value || '').trim();
     if (!t) return;
     try {
-      const r = await api('/qr/scan', { method: 'POST', body: { token: t, gate: 'A', controller: 'poste-1' } });
+      const body = { token: t, gate: 'A', controller: 'poste-1' };
+      if (eventIdRef.current) body.event_id = Number(eventIdRef.current);
+      const r = await api('/qr/scan', { method: 'POST', body });
       setLast(r); setToken(''); load();
     } catch { setLast({ result: 'unknown' }); }
   };
@@ -66,6 +78,12 @@ export default function ScanPage() {
       <div className="scan-grid">
         <section className="panel">
           <h2>Scanner un billet</h2>
+          <label className="field scan-event-pick">Événement à contrôler
+            <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
+              <option value="">Tous les événements</option>
+              {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+            </select>
+          </label>
           <form onSubmit={scan} className="scan-form">
             <input className="mono" value={token} onChange={(e) => setToken(e.target.value)}
                    placeholder="Collez le token du QR ici" autoFocus />
@@ -91,6 +109,9 @@ export default function ScanPage() {
               {last.title ? (
                 <>
                   <div className="scan-event">{last.title}</div>
+                  {last.result === 'wrong_event' &&
+                    <div className="danger-text" style={{ fontSize: '.85rem', marginBottom: 8 }}>
+                      Ce billet n'est pas valable pour l'événement contrôlé.</div>}
                   <dl className="scan-details">
                     {last.category && (<><dt>Catégorie</dt><dd>{last.category}</dd></>)}
                     {last.starts_at && (<><dt>Date de l'événement</dt>
@@ -117,6 +138,8 @@ export default function ScanPage() {
 
         <section className="panel">
           <h2>Suivi des entrées <span className="hint">temps réel</span></h2>
+          {eventId && <p className="muted" style={{ marginTop: -6, marginBottom: 10, fontSize: '.85rem' }}>
+            Événement : <strong>{events.find((e) => String(e.id) === String(eventId))?.title}</strong></p>}
           <div className="kpi-row" style={{ marginBottom: 14 }}>
             <div className="kpi"><span className="kpi-n" style={{ color: 'var(--ok)' }}>{stat('valid')}</span><span className="kpi-l">Validés</span></div>
             <div className="kpi"><span className="kpi-n" style={{ color: 'var(--danger)' }}>{stat('duplicate') + stat('unknown')}</span><span className="kpi-l">Refusés</span></div>

@@ -201,5 +201,8 @@ label.field input, label.field textarea, label.field select { min-width: 160px; 
 .scan-details dt { color: var(--muted); font-size: .82rem; white-space: nowrap; }
 .scan-details dd { margin: 0; font-size: .9rem; font-weight: 600; }
 .scan-details .danger-text { color: var(--danger); }
+.danger-text { color: var(--danger); }
+.scan-event-pick { display: block; margin-bottom: 14px; color: var(--muted); font-size: .85rem; }
+.scan-event-pick select { display: block; width: 100%; margin-top: 6px; }
 
 @media (max-width: 860px) { .scan-grid { grid-template-columns: 1fr; } }

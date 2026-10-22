@@ -96,12 +96,15 @@ router.post('/scan', async (req, res, next) => {
 // US-026 : suivi des entrées en temps réel (pour l'organisateur / contrôleur)
 router.get('/entries', requireRole('admin', 'organizer', 'rssi'), async (req, res, next) => {
   try {
+    const ev = req.query.event_id ? Number(req.query.event_id) : null;   // filtre par événement contrôlé
     const recent = await db.query(
       `SELECT s.result, s.gate, s.scanned_at, e.title AS event_title
        FROM qr_scans s LEFT JOIN events e ON e.id=s.event_id
-       ORDER BY s.scanned_at DESC LIMIT 50`);
+       WHERE ($1::int IS NULL OR s.event_id=$1)
+       ORDER BY s.scanned_at DESC LIMIT 50`, [ev]);
     const stats = await db.query(
-      `SELECT result, COUNT(*)::int AS n FROM qr_scans GROUP BY result`);
+      `SELECT result, COUNT(*)::int AS n FROM qr_scans
+       WHERE ($1::int IS NULL OR event_id=$1) GROUP BY result`, [ev]);
     res.json({ recent: recent.rows, stats: stats.rows });
   } catch (e) { next(e); }
 });
